@@ -1,16 +1,28 @@
 from celery import shared_task
 from celery.schedules import crontab
 from urllib.request import urlopen
+from urllib.error import HTTPError
 from bs4 import BeautifulSoup
 from .models import PrayerTime
 import re
 from celery.task import periodic_task
 
+def geturl(url):
+    try:
+         html=urlopen(url)
+    except HTTPError  as e:
+        return None
+    try: 
+        bs=BeautifulSoup(html.read(),'html.parser')
+        ti = bs.find_all('span',{"class" : "prayertime"})
+
+    except AttributeError as e:
+        return None
+    return ti 
+
 @periodic_task(run_every=(crontab(minute='*/1')), name="prayer_time_task")
 def nadjib():
-    html=urlopen('https://www.islamicfinder.org/world/algeria/2507480/algiers-prayer-times/?language=fr')
-    bs=BeautifulSoup(html.read(),'html.parser')
-    ti = bs.find_all('span',{"class" : "prayertime"})
+    ti = geturl('https://www.islamicfinder.org/world/algeria/2507480/algiers-prayer-times/?language=fr')
     time = [t.get_text() for t in ti]
     #na = bs.find_all('span',class_="prayername")
     #name  = [n.get_text() for n in na]
